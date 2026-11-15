@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图片脚本生成器</title>
+<link rel="stylesheet"
+  href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f4f6f8; color: #222; height: 100vh; overflow: hidden;
+  }
+  .app { display: flex; height: 100vh; }
+  .panel { width: 500px; min-width: 380px; max-width: 55vw; background: #fff;
+    border-right: 1px solid #e2e6ea; overflow-y: auto; padding: 16px 18px 80px; }
+  .preview { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #fbfcfd; }
+  .toolbar { display: flex; gap: 8px; padding: 10px 14px; background: #fff;
+    border-bottom: 1px solid #e2e6ea; align-items: center; flex-wrap: wrap; }
+  .toolbar .spacer { flex: 1; }
+  pre.code-wrapper { flex: 1; margin: 0; overflow: auto; padding: 16px 20px; background: #fbfcfd; }
+  pre.code-wrapper code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12.5px; line-height: 1.55; display: block; }
+  h1 { font-size: 17px; margin: 0 0 14px; }
+  h2 { font-size: 14px; margin: 18px 0 8px; color: #111; border-left: 3px solid #3b82f6; padding-left: 8px; }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; }
+  .field label.label-red { color: #dc2626; font-weight: 700; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 7px 9px; font-size: 13px; border: 1px solid #d1d8e0; border-radius: 6px;
+    background: #fafbfc; color: #222; outline: none; font-family: inherit;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus { border-color: #3b82f6; background: #fff; }
+  .row { display: flex; gap: 10px; } .row .field { flex: 1; }
+  .page-card { border: 1px solid #e2e6ea; border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #fafbfc; }
+  .page-card .page-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .page-card .page-num { font-weight: 600; font-size: 13px; background: #3b82f6; color: #fff;
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .page-card .page-header .spacer { flex: 1; }
+  .btn { padding: 7px 14px; font-size: 13px; border: 1px solid #d1d8e0; background: #fff;
+    border-radius: 6px; cursor: pointer; color: #333; font-family: inherit; }
+  .btn:hover { background: #f0f4f8; border-color: #a0aec0; }
+  .btn.primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+  .btn.primary:hover { background: #2563eb; }
+  .btn.danger { color: #dc2626; border-color: #fecaca; }
+  .btn.danger:hover { background: #fef2f2; }
+  .btn.small { padding: 4px 9px; font-size: 12px; }
+  /* 红色保存按钮 */
+  .btn.save-red {
+    background: #ef4444; color: #fff; border-color: #ef4444; font-weight: 700;
+    box-shadow: 0 1px 2px rgba(239,68,68,0.25);
+  }
+  .btn.save-red:hover { background: #dc2626; border-color: #dc2626; }
+  .btn.save-red.saved { background: #16a34a; border-color: #16a34a; }
+  /* 红色文字按钮：批量导入提示词 */
+  .btn.red-text {
+    color: #dc2626; border-color: #fca5a5; font-weight: 700;
+  }
+  .btn.red-text:hover { background: #fef2f2; border-color: #f87171; }
+  .page-card textarea { min-height: 110px; resize: vertical; }
+  .hint { font-size: 11.5px; color: #888; margin-top: 3px; line-height: 1.4; }
+  .divider { height: 1px; background: #e2e6ea; margin: 18px 0; }
+
+  .env-switch { display: flex; gap: 8px; margin-bottom: 10px; padding: 10px 12px;
+    background: #fff; border: 1px solid #e2e6ea; border-radius: 10px; }
+  .env-switch label { flex: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 9px 10px; border-radius: 7px; border: 1px solid #d1d8e0;
+    background: #fafbfc; font-size: 13px; font-weight: 600; color: #555;
+    transition: all 0.15s; margin: 0; }
+  .env-switch label:hover { border-color: #a0aec0; }
+  .env-switch input { display: none; }
+  .env-switch label:has(input:checked) { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+  .env-switch label span { display: inline-flex; align-items: center; gap: 6px; }
+
+  .gpu-mode-bar { display: none; gap: 8px; margin-bottom: 10px; padding: 10px 12px;
+    background: #f5f3ff; border: 1px solid #ddd6fe; border-radius: 10px; }
+  .gpu-mode-bar.visible { display: flex; }
+  .gpu-mode-bar label { flex: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 9px 10px; border-radius: 7px; border: 1px solid #c4b5fd;
+    background: #fff; font-size: 13px; font-weight: 600; color: #6d28d9;
+    transition: all 0.15s; margin: 0; }
+  .gpu-mode-bar label:hover { border-color: #a78bfa; }
+  .gpu-mode-bar input { display: none; }
+  .gpu-mode-bar label:has(input:checked) {
+    background: #ede9fe; border-color: #7c3aed; color: #5b21b6;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.18);
+  }
+  .gpu-mode-bar label span { display: inline-flex; align-items: center; gap: 6px; }
+
+  .gpu-strategy-bar { display: none; gap: 6px; margin-bottom: 12px; padding: 8px 10px;
+    background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; }
+  .gpu-strategy-bar.visible { display: flex; }
+  .gpu-strategy-bar label { flex: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    gap: 4px; padding: 7px 6px; border-radius: 6px; border: 1px solid #6ee7b7;
+    background: #fff; font-size: 12px; font-weight: 600; color: #047857;
+    transition: all 0.15s; margin: 0; }
+  .gpu-strategy-bar label:hover { border-color: #34d399; }
+  .gpu-strategy-bar input { display: none; }
+  .gpu-strategy-bar label:has(input:checked) {
+    background: #d1fae5; border-color: #059669; color: #065f46;
+    box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.18);
+  }
+  .gpu-strategy-bar label span { display: inline-flex; align-items: center; gap: 4px; }
+
+  .notice { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    border: 1px solid #fdba74; border-left: 5px solid #f97316; border-radius: 10px;
+    padding: 14px 16px 12px; margin-bottom: 12px;
+    box-shadow: 0 1px 2px rgba(249, 115, 22, 0.08); }
+  .notice.kaggle { background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+    border-color: #a5b4fc; border-left-color: #6366f1;
+    box-shadow: 0 1px 2px rgba(99, 102, 241, 0.08); }
+  .notice.kaggle .notice-title { color: #3730a3; }
+  .notice.kaggle .notice-title .icon { background: #6366f1; }
+  .notice.kaggle ol { color: #312e81; }
+  .notice.kaggle code { background: #fff; border-color: #c7d2fe; color: #3730a3; }
+  .notice.kaggle a { color: #4338ca; }
+  .notice.kaggle .tip { border-color: #a5b4fc; color: #3730a3; }
+  .notice-title { display: flex; align-items: center; gap: 8px;
+    font-size: 14.5px; font-weight: 700; color: #9a3412; margin: 0 0 10px; }
+  .notice-title .icon { display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #f97316; color: #fff; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .notice ol { margin: 0; padding-left: 22px; font-size: 13px; color: #7c2d12; line-height: 1.7; }
+  .notice ol li { margin-bottom: 2px; }
+  .notice code { background: #fff; border: 1px solid #fed7aa; padding: 1px 5px; border-radius: 4px;
+    font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; color: #9a3412; }
+  .notice a { color: #c2410c; word-break: break-all; }
+  .notice .tip { margin-top: 9px; padding-top: 8px; border-top: 1px dashed #fdba74;
+    font-size: 12px; color: #9a3412; }
+
+  .config-status { display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; margin-bottom: 14px; background: #f0fdf4;
+    border: 1px solid #bbf7d0; border-radius: 8px;
+    font-size: 12px; color: #166534; flex-wrap: wrap; }
+  .config-status .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
+    flex-shrink: 0; box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+  .config-status #saveIndicator { flex: 1; min-width: 120px; }
+  .config-status.dirty { background: #fff7ed; border-color: #fdba74; color: #9a3412; }
+  .config-status.dirty .dot { background: #f97316; box-shadow: 0 0 0 3px rgba(249,115,22,0.18); }
+  .config-status.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+  .config-status.error .dot { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,0.15); }
+  .config-status.info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+  .config-status.info .dot { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    display: none; align-items: center; justify-content: center; z-index: 1000; }
+  .modal.show { display: flex; }
+  .modal-content { background: #fff; border-radius: 12px;
+    width: 760px; max-width: 92vw; max-height: 88vh; display: flex; flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; border-bottom: 1px solid #e2e6ea; }
+  .modal-header h3 { margin: 0; font-size: 15px; }
+  .modal-close { background: none; border: none; font-size: 22px; color: #888;
+    cursor: pointer; padding: 0 6px; line-height: 1; }
+  .modal-close:hover { color: #333; }
+  .modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+  .modal-footer { padding: 12px 18px; border-top: 1px solid #e2e6ea;
+    display: flex; justify-content: flex-end; gap: 8px; }
+  .batch-stats { font-size: 13px; color: #3b82f6; font-weight: 600;
+    margin: 4px 0 12px; padding: 8px 12px; background: #eff6ff;
+    border-radius: 6px; border-left: 3px solid #3b82f6; }
+  .batch-preview { max-height: 260px; overflow-y: auto;
+    border: 1px solid #e2e6ea; border-radius: 6px; padding: 8px;
+    background: #fafbfc; font-size: 12px; min-height: 60px; }
+  .batch-preview-item { padding: 7px 8px; border-bottom: 1px dashed #e2e6ea;
+    display: flex; gap: 8px; align-items: flex-start; }
+  .batch-preview-item:last-child { border-bottom: none; }
+  .batch-preview-num { flex-shrink: 0; width: 22px; height: 22px;
+    background: #3b82f6; color: #fff; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 11px; }
+  .batch-preview-text { color: #555; line-height: 1.5; word-break: break-all; flex: 1; }
+  .batch-preview-empty { color: #999; padding: 12px; text-align: center; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="panel">
+
+    <div class="env-switch">
+      <label>
+        <input type="radio" name="envRadio" value="colab">
+        <span>🌐 Google Colab</span>
+      </label>
+      <label>
+        <input type="radio" name="envRadio" value="kaggle">
+        <span>🟣 Kaggle</span>
+      </label>
+    </div>
+
+    <div class="gpu-mode-bar" id="gpuModeBar">
+      <label>
+        <input type="radio" name="gpuModeRadio" value="single">
+        <span>🎴 单卡（1×T4）</span>
+      </label>
+      <label>
+        <input type="radio" name="gpuModeRadio" value="dual">
+        <span>⚡ 双卡并行（2×T4）</span>
+      </label>
+    </div>
+
+    <div class="gpu-strategy-bar" id="gpuStrategyBar">
+      <label title="按页数均分：第 1/3/5…页 → GPU 0，第 2/4/6…页 → GPU 1">
+        <input type="radio" name="gpuStrategyRadio" value="balanced">
+        <span>📊 平均分配</span>
+      </label>
+      <label title="动态负载均衡：哪张卡先完成就接下一单，整体更快">
+        <input type="radio" name="gpuStrategyRadio" value="auto">
+        <span>⚡ 自动选择</span>
+      </label>
+      <label title="为每一页手动指定使用哪张 GPU">
+        <input type="radio" name="gpuStrategyRadio" value="manual">
+        <span>🎯 自定义</span>
+      </label>
+    </div>
+
+    <div class="notice" id="noticeColab">
+      <div class="notice-title"><span class="icon">!</span>使用前请先完成以下准备（Colab）</div>
+      <ol>
+        <li>登录网站：<a href="https://colab.research.google.com/" target="_blank" rel="noopener">https://colab.research.google.com/</a></li>
+        <li>点击 <b>“文件” → “在云硬盘中新建笔记本”</b>，然后设置 <b>“代码执行程序 → 更改运行时类型 → T4 GPU”</b>。</li>
+        <li>先运行 <code>!nvidia-smi</code> 确认 GPU 正常，再开始执行本代码。</li>
+      </ol>
+      <div class="tip">💡 以上 3 条也会自动写入生成脚本最前面的注释区，方便日后回看。</div>
+    </div>
+
+    <div class="notice kaggle" id="noticeKaggle" style="display:none;">
+      <div class="notice-title"><span class="icon">!</span>使用前请先完成以下准备（Kaggle）</div>
+      <ol>
+        <li>打开 <a href="https://www.kaggle.com/code" target="_blank" rel="noopener">https://www.kaggle.com/code</a>，点右上角 <b>Create New Notebook</b>。</li>
+        <li>右侧 <b>Session options</b> 面板：<b>Accelerator</b> 选 <b>GPU T4 ×2</b>，<b>Internet</b> 开关拨到 <b>On</b>。</li>
+        <li>新建格子先运行 <code>!nvidia-smi</code> 确认 GPU 正常，再继续。</li>
+      </ol>
+      <div class="tip">💡 双卡并行：同一 Notebook 内启动两个 ComfyUI 进程，分别绑定 GPU 0 和 GPU 1；可按需选择分配策略。</div>
+    </div>
+
+    <div class="config-status info" id="configStatus">
+      <span class="dot"></span>
+      <span id="saveIndicator">初始化中…</span>
+      <button class="btn small" id="bindDirBtn" title="选择网页所在目录，配置将写入 config.json">📁 绑定目录</button>
+      <button class="btn small danger" id="resetConfigBtn" title="清除浏览器保存的配置并恢复默认">恢复默认</button>
+    </div>
+
+    <h1>绘本脚本生成器</h1>
+
+    <h2>批次与网盘</h2>
+    <div class="field">
+      <label>页数（1-50，修改后回车生效）</label>
+      <input type="number" id="pageCount" min="1" max="50">
+    </div>
+    <div class="field">
+      <label class="label-red">BIN_ID（filebin 网盘目录）</label>
+      <input type="text" id="binId">
+      <div class="hint">上传链接形如：https://filebin.net/{BIN_ID}/{文件名}</div>
+    </div>
+    <div class="field"><label>本地保存目录 LOCAL_DIR</label><input type="text" id="localDir"></div>
+    <div class="field"><label>ComfyUI 输出目录 OUTPUT_DIR</label><input type="text" id="outputDir"></div>
+    <div class="row">
+      <div class="field">
+        <label>批次时间戳模式</label>
+        <select id="runTsMode">
+          <option value="auto">自动（每次运行生成新时间戳）</option>
+          <option value="fixed">固定（手动指定）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>固定时间戳</label>
+        <input type="text" id="runTsFixed" placeholder="20251115_153045">
+      </div>
+    </div>
+
+    <h2>全局生成参数</h2>
+    <div class="row">
+      <div class="field"><label>SEED</label><input type="number" id="seed"></div>
+      <div class="field"><label>STEPS</label><input type="number" id="steps"></div>
+      <div class="field"><label>CFG</label><input type="number" id="cfg" step="0.1"></div>
+    </div>
+    <div class="field">
+      <label class="label-red">图片尺寸</label>
+      <select id="sizeSelect">
+        <option value="720x1280">竖版 9:16 · 720×1280</option>
+        <option value="1280x720">横板 16:9 · 1280×720</option>
+        <option value="768x1152">竖版 2:3 · 768×1152</option>
+        <option value="832x1040">竖版 4:5 · 832×1040</option>
+        <option value="768x1024">竖版 3:4 · 768×1024</option>
+        <option value="1024x1024">方图 1:1 · 1024×1024</option>
+      </select>
+    </div>
+    <div class="field"><label>负面提示词 NEGATIVE</label><input type="text" id="negative"></div>
+
+    <h2>模型文件</h2>
+    <div class="field"><label>扩散模型 DIT 文件名</label><input type="text" id="ditName"></div>
+    <div class="field"><label>扩散模型下载 URL</label><input type="text" id="ditUrl"></div>
+    <div class="field"><label>文本编码器 TE 文件名</label><input type="text" id="teName"></div>
+    <div class="field"><label>文本编码器下载 URL</label><input type="text" id="teUrl"></div>
+    <div class="field"><label>VAE 文件名</label><input type="text" id="vaeName"></div>
+    <div class="field"><label>VAE 下载 URL</label><input type="text" id="vaeUrl"></div>
+
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="margin:0;">每页提示词与参数</h2>
+      <button class="btn small primary" id="addPageBtn">+ 添加一页</button>
+    </div>
+    <div id="pageList" style="margin-top:10px;"></div>
+  </aside>
+
+  <main class="preview">
+    <div class="toolbar">
+      <button class="btn save-red" id="saveConfigBtn">💾 保存配置</button>
+      <button class="btn primary" id="exportPyBtn">⬇ 导出 .py</button>
+      <button class="btn" id="exportJsonBtn">⬇ 导出 config.json</button>
+      <button class="btn" id="importBtn">⬆ 导入 .py / .json</button>
+      <button class="btn red-text" id="batchImportBtn">📥 批量导入提示词</button>
+      <button class="btn" id="copyBtn">📋 复制代码</button>
+      <div class="spacer"></div>
+      <span id="stats" style="font-size:12px;color:#888;"></span>
+      <input type="file" id="importInput" accept=".py,.json" hidden>
+    </div>
+    <pre class="code-wrapper"><code class="language-python" id="codeBlock"></code></pre>
+  </main>
+</div>
+
+<div class="modal" id="batchModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>批量导入提示词</h3>
+      <button class="modal-close" id="batchClose" title="关闭">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>粘贴多个提示词（支持多种分隔方式，可自动识别）</label>
+        <textarea id="batchInput" style="min-height:180px;font-family:'SFMono-Regular',Consolas,monospace;font-size:12px;" placeholder="在此粘贴多个提示词……
+
+支持以下分隔方式（自动识别会依次尝试）：
+• 行首标记：第1页提示词 / 第2页提示词 / 第3页 …
+• 三个横线：---  （单独一行）
+• 三个引号：&quot;&quot;&quot; 包裹每段
+• 空行分隔
+• 每行一段（需手动选择）"></textarea>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>分隔方式</label>
+          <select id="batchDelimiter">
+            <option value="auto">自动识别</option>
+            <option value="page">第X页提示词</option>
+            <option value="dash">--- 分隔线</option>
+            <option value="triple">三引号 &quot;&quot;&quot;</option>
+            <option value="blank">空行分隔</option>
+            <option value="line">每行一段</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>导入方式</label>
+          <select id="batchMode">
+            <option value="replace">替换现有（清空后导入）</option>
+            <option value="append">追加到末尾（保留现有）</option>
+          </select>
+        </div>
+      </div>
+      <div class="batch-stats" id="batchStats">识别到 0 个提示词</div>
+      <div class="field" style="margin-bottom:0;">
+        <label>预览</label>
+        <div class="batch-preview" id="batchPreview">
+          <div class="batch-preview-empty">粘贴提示词后这里会显示预览</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="batchCancel">取消</button>
+      <button class="btn primary" id="batchConfirm">导入</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<script>
+const SIZE_PRESETS = [
+  { key: '720x1280',   w: 720,  h: 1280, label: '竖版 9:16 · 720×1280' },
+  { key: '1280x720',   w: 1280, h: 720,  label: '横板 16:9 · 1280×720' },
+  { key: '768x1152',   w: 768,  h: 1152, label: '竖版 2:3 · 768×1152' },
+  { key: '832x1040',   w: 832,  h: 1040, label: '竖版 4:5 · 832×1040' },
+  { key: '768x1024',   w: 768,  h: 1024, label: '竖版 3:4 · 768×1024' },
+  { key: '1024x1024',  w: 1024, h: 1024, label: '方图 1:1 · 1024×1024' }
+];
+const DEFAULT_SIZE_KEY = '1024x1024';
+function sizeKeyFromWH(w, h) {
+  const k = `${w}x${h}`;
+  return SIZE_PRESETS.find(p => p.key === k) ? k : DEFAULT_SIZE_KEY;
+}
+
+function defaultsForEnv(env) {
+  if (env === 'kaggle') {
+    return {
+      workDir:   '/kaggle/working',
+      localDir:  '/kaggle/working/storybook_pages',
+      outputDir: '/kaggle/working/ComfyUI/output',
+      logFile:   '/kaggle/working/comfyui.log'
+    };
+  }
+  return {
+    workDir:   '/content',
+    localDir:  '/content/storybook_pages',
+    outputDir: '/content/ComfyUI/output',
+    logFile:   '/content/comfyui.log'
+  };
+}
+
+const DEFAULT_STATE = {
+  global: {
+    env: 'colab',
+    dualGpu: false,
+    gpuStrategy: 'balanced',
+    binId: '必须输入，不然无法上传生成图片',
+    localDir: '/content/storybook_pages',
+    outputDir: '/content/ComfyUI/output',
+    seed: 42, steps: 35, cfg: 5.0, width: 1024, height: 1024,
+    negative: ' ', runTsMode: 'auto', runTsFixed: '20251115_153045',
+    dit: {
+      name: 'qwen-image-2.1-step90000-INT8-ConvRot-comfy.safetensors',
+      url: 'https://huggingface.co/chatrlabs/Qwen-Image-2.1-Uncensored-Omni-Quantized/resolve/main/qwen-image-2.1-step90000-INT8-ConvRot-comfy.safetensors'
+    },
+    te: {
+      name: 'qwen3vl_8b_int8_convrot.safetensors',
+      url: 'https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_int8_convrot.safetensors'
+    },
+    vae: {
+      name: 'qwen_image_2.1_vae_bf16.safetensors',
+      url: 'https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors'
+    }
+  },
+  pages: [
+    { prompt: '', seedOverride: '', widthOverride: '', heightOverride: '', gpuAssign: '' },
+    { prompt: '', seedOverride: '', widthOverride: '', heightOverride: '', gpuAssign: '' },
+    { prompt: '', seedOverride: '', widthOverride: '', heightOverride: '', gpuAssign: '' }
+  ]
+};
+
+const CONFIG_FILENAME = 'config.json';
+const OLD_BIN_IDS = ['ddctetgewnv5oidv'];
+const IDB_NAME = 'storybook_builder_db';
+const IDB_STORE = 'handles';
+const IDB_KEY = 'dir_handle';
+const LS_KEY = 'storybook_builder_config_v1';
+
+let state;
+let dirHandle = null;
+let configSource = 'default';
+let isDirty = false;   // 是否有未保存的修改
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(IDB_STORE)) {
+        req.result.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbSet(key, val) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(val, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function deepMerge(base, override) {
+  const out = JSON.parse(JSON.stringify(base));
+  if (!override || typeof override !== 'object') return out;
+  for (const k of Object.keys(override)) {
+    const v = override[k];
+    if (v && typeof v === 'object' && !Array.isArray(v) &&
+        out[k] && typeof out[k] === 'object' && !Array.isArray(out[k])) {
+      out[k] = deepMerge(out[k], v);
+    } else {
+      try { out[k] = JSON.parse(JSON.stringify(v)); } catch (e) { out[k] = v; }
+    }
+  }
+  return out;
+}
+
+function mergeConfig(obj) {
+  const merged = deepMerge(DEFAULT_STATE, obj || {});
+  const g = merged.global;
+  if (OLD_BIN_IDS.includes(g.binId)) g.binId = DEFAULT_STATE.global.binId;
+  if (g.env !== 'colab' && g.env !== 'kaggle') g.env = 'colab';
+  g.dualGpu = !!g.dualGpu && g.env === 'kaggle';
+  if (!['balanced', 'auto', 'manual'].includes(g.gpuStrategy)) g.gpuStrategy = 'balanced';
+
+  const sk = sizeKeyFromWH(g.width, g.height);
+  const preset = SIZE_PRESETS.find(p => p.key === sk);
+  g.width = preset.w;
+  g.height = preset.h;
+
+  if (!Array.isArray(merged.pages) || merged.pages.length === 0) {
+    merged.pages = JSON.parse(JSON.stringify(DEFAULT_STATE.pages));
+  }
+  merged.pages = merged.pages.map(p => {
+    const wi = p.widthOverride == null ? '' : String(p.widthOverride);
+    const hi = p.heightOverride == null ? '' : String(p.heightOverride);
+    let w = wi, h = hi;
+    if (w && h) {
+      const wk = `${w}x${h}`;
+      if (!SIZE_PRESETS.find(s => s.key === wk)) { w = ''; h = ''; }
+    } else { w = ''; h = ''; }
+    const ga = (p.gpuAssign === 0 || p.gpuAssign === '0') ? '0'
+             : (p.gpuAssign === 1 || p.gpuAssign === '1') ? '1'
+             : '';
+    return {
+      prompt: p.prompt || '',
+      seedOverride: p.seedOverride ?? '',
+      widthOverride: w, heightOverride: h,
+      gpuAssign: ga
+    };
+  });
+  if (merged.pages.length > 50) merged.pages = merged.pages.slice(0, 50);
+  return merged;
+}
+
+async function fetchConfigFile() {
+  try {
+    const r = await fetch('./' + CONFIG_FILENAME + '?t=' + Date.now(), { cache: 'no-store' });
+    if (r.ok) return await r.json();
+  } catch (e) {}
+  return null;
+}
+async function readConfigFromHandle(handle) {
+  try {
+    const fh = await handle.getFileHandle(CONFIG_FILENAME);
+    const file = await fh.getFile();
+    return JSON.parse(await file.text());
+  } catch (e) { return null; }
+}
+async function writeConfigToHandle(handle, data) {
+  try {
+    let perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await handle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') return false;
+    const fh = await handle.getFileHandle(CONFIG_FILENAME, { create: true });
+    const w = await fh.createWritable();
+    await w.write(JSON.stringify(data, null, 2));
+    await w.close();
+    return true;
+  } catch (e) { console.warn('写入 config.json 失败:', e); return false; }
+}
+function saveToLocalStorage() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(state)); return true; }
+  catch (e) { return false; }
+}
+
+/* ============ 手动保存（点击按钮触发） ============ */
+async function saveConfigNow() {
+  const btn = document.getElementById('saveConfigBtn');
+  btn.disabled = true;
+  const oldText = btn.textContent;
+  btn.textContent = '⏳ 保存中…';
+
+  try {
+    if (dirHandle) {
+      const ok = await writeConfigToHandle(dirHandle, state);
+      if (ok) {
+        isDirty = false;
+        setStatus('ok', `已保存到 ${CONFIG_FILENAME}`);
+        btn.classList.add('saved');
+        btn.textContent = '✅ 已保存';
+        setTimeout(() => {
+          btn.classList.remove('saved');
+          btn.textContent = '💾 保存配置';
+          btn.disabled = false;
+        }, 1500);
+        return;
+      }
+      // 目录写入失败，降级到 localStorage
+      if (saveToLocalStorage()) {
+        isDirty = false;
+        setStatus('dirty', `${CONFIG_FILENAME} 写入失败，已存到浏览器本地`);
+        btn.textContent = '💾 保存配置';
+        btn.disabled = false;
+        return;
+      }
+      setStatus('error', '保存失败（目录写入和浏览器存储均失败）');
+    } else {
+      if (saveToLocalStorage()) {
+        isDirty = false;
+        setStatus('dirty', `未绑定目录，已存到浏览器本地（点「绑定目录」可写入 ${CONFIG_FILENAME}）`);
+        btn.classList.add('saved');
+        btn.textContent = '✅ 已保存';
+        setTimeout(() => {
+          btn.classList.remove('saved');
+          btn.textContent = '💾 保存配置';
+          btn.disabled = false;
+        }, 1500);
+        return;
+      }
+      setStatus('error', '保存失败（浏览器存储受限）');
+    }
+  } catch (e) {
+    setStatus('error', '保存异常: ' + e.message);
+  } finally {
+    if (btn.textContent !== '✅ 已保存') {
+      btn.textContent = oldText;
+      btn.disabled = false;
+    }
+  }
+}
+
+function markDirty() {
+  isDirty = true;
+  setStatus('dirty', '有未保存的修改（点「💾 保存配置」写入）');
+}
+
+function setStatus(kind, text) {
+  const bar = document.getElementById('configStatus');
+  const ind = document.getElementById('saveIndicator');
+  if (!bar || !ind) return;
+  bar.classList.remove('dirty', 'error', 'info');
+  if (kind === 'dirty') bar.classList.add('dirty');
+  else if (kind === 'error') bar.classList.add('error');
+  else if (kind === 'info') bar.classList.add('info');
+  ind.textContent = text;
+}
+function updateBindDirBtn() {
+  const btn = document.getElementById('bindDirBtn');
+  if (!window.showDirectoryPicker) { btn.style.display = 'none'; return; }
+  btn.style.display = '';
+  if (dirHandle) {
+    btn.textContent = `📁 已绑定：${dirHandle.name}`;
+    btn.title = '点击可重新选择目录';
+  } else {
+    btn.textContent = '📁 绑定目录';
+    btn.title = '选择网页所在目录，配置将写入 config.json';
+  }
+}
+function describeSource() {
+  if (configSource === 'file') return `已从 ${CONFIG_FILENAME} 加载`;
+  if (configSource === 'indexeddb') return `已从绑定的目录读取 ${CONFIG_FILENAME}`;
+  if (configSource === 'localstorage') return `已从浏览器本地存储加载（点「绑定目录」可写入 ${CONFIG_FILENAME}）`;
+  return `使用默认参数（首次打开）`;
+}
+async function pickDirectory() {
+  if (!window.showDirectoryPicker) {
+    alert('当前浏览器不支持 File System Access API。\n\n请使用最新版 Chrome / Edge，\n并通过 http://localhost 或 https 打开本页面。');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    dirHandle = handle;
+    try { await idbSet(IDB_KEY, handle); } catch (e) {}
+    // 绑定目录后仅尝试读取，不自动写入；写入由保存按钮触发
+    const fileCfg = await readConfigFromHandle(handle);
+    if (fileCfg) {
+      state = mergeConfig(fileCfg);
+      configSource = 'indexeddb';
+      isDirty = false;
+      renderAll();
+      applyEnvUI();
+      setStatus('ok', `已绑定「${handle.name}」并读取 ${CONFIG_FILENAME}`);
+    } else {
+      setStatus('dirty', `已绑定「${handle.name}」，目录中暂无 ${CONFIG_FILENAME}。点「💾 保存配置」写入`);
+    }
+    updateBindDirBtn();
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    setStatus('error', '选择目录失败: ' + e.message);
+  }
+}
+
+async function initState() {
+  const fileCfg = await fetchConfigFile();
+  if (fileCfg) { state = mergeConfig(fileCfg); configSource = 'file'; return; }
+  try {
+    const saved = await idbGet(IDB_KEY);
+    if (saved && saved.queryPermission) {
+      const perm = await saved.queryPermission({ mode: 'readwrite' });
+      if (perm !== 'denied') {
+        dirHandle = saved;
+        const cfg = await readConfigFromHandle(saved);
+        if (cfg) { state = mergeConfig(cfg); configSource = 'indexeddb'; return; }
+      }
+    }
+  } catch (e) { console.warn('恢复目录句柄失败:', e); }
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) { state = mergeConfig(JSON.parse(raw)); configSource = 'localstorage'; return; }
+  } catch (e) {}
+  state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  configSource = 'default';
+}
+
+async function initApp() {
+  try { await initState(); }
+  catch (e) {
+    console.error('initState 失败:', e);
+    state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+  renderAll();
+  updateBindDirBtn();
+  applyEnvUI();
+  const msg = describeSource();
+  if (configSource === 'file' || configSource === 'indexeddb') setStatus('ok', msg);
+  else setStatus('info', msg);
+  if (!dirHandle && window.showDirectoryPicker && configSource !== 'file') {
+    setTimeout(() => {
+      if (!dirHandle) setStatus('info', '提示：点「绑定目录」选择网页所在目录，配置将写入 config.json');
+    }, 1500);
+  }
+}
+
+function applyEnvUI() {
+  const env = state.global.env;
+  document.getElementById('noticeColab').style.display = (env === 'kaggle') ? 'none' : '';
+  document.getElementById('noticeKaggle').style.display = (env === 'kaggle') ? '' : 'none';
+  document.querySelectorAll('input[name=envRadio]').forEach(r => { r.checked = (r.value === env); });
+
+  const modeBar = document.getElementById('gpuModeBar');
+  const strategyBar = document.getElementById('gpuStrategyBar');
+
+  if (env === 'kaggle') {
+    modeBar.classList.add('visible');
+    document.querySelectorAll('input[name=gpuModeRadio]').forEach(r => {
+      r.checked = (r.value === (state.global.dualGpu ? 'dual' : 'single'));
+    });
+  } else {
+    modeBar.classList.remove('visible');
+    state.global.dualGpu = false;
+  }
+
+  if (env === 'kaggle' && state.global.dualGpu) {
+    strategyBar.classList.add('visible');
+    document.querySelectorAll('input[name=gpuStrategyRadio]').forEach(r => {
+      r.checked = (r.value === (state.global.gpuStrategy || 'balanced'));
+    });
+  } else {
+    strategyBar.classList.remove('visible');
+  }
+}
+
+function applyEnv(newEnv) {
+  const oldEnv = state.global.env || 'colab';
+  if (oldEnv === newEnv) return;
+  const oldDef = defaultsForEnv(oldEnv);
+  const newDef = defaultsForEnv(newEnv);
+  if (state.global.localDir === oldDef.localDir) {
+    state.global.localDir = newDef.localDir;
+    document.getElementById('localDir').value = newDef.localDir;
+  }
+  if (state.global.outputDir === oldDef.outputDir) {
+    state.global.outputDir = newDef.outputDir;
+    document.getElementById('outputDir').value = newDef.outputDir;
+  }
+  state.global.env = newEnv;
+  if (newEnv !== 'kaggle') state.global.dualGpu = false;
+  applyEnvUI();
+  renderPages();
+  updateCode();
+}
+
+function applyGpuMode(mode) {
+  state.global.dualGpu = (mode === 'dual') && (state.global.env === 'kaggle');
+  applyEnvUI();
+  renderPages();
+  updateCode();
+}
+
+function applyGpuStrategy(strategy) {
+  if (!['balanced', 'auto', 'manual'].includes(strategy)) strategy = 'balanced';
+  state.global.gpuStrategy = strategy;
+  renderPages();
+  updateCode();
+}
+
+function pySq(s) { return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+function pyTriple(s) {
+  if (s.includes('"""') || /\\$/.test(s)) {
+    return "'" + String(s)
+      .replace(/\\/g, '\\\\')
+      .replace(/'/g, "\\'")
+      .replace(/\n/g, '\\n') + "'";
+  }
+  return '"""' + s + '"""';
+}
+function resolvePageParams(p) {
+  return {
+    seed: p.seedOverride !== '' ? parseInt(p.seedOverride) : state.global.seed,
+    width: p.widthOverride !== '' ? parseInt(p.widthOverride) : state.global.width,
+    height: p.heightOverride !== '' ? parseInt(p.heightOverride) : state.global.height
+  };
+}
+function emptyPage() { return { prompt: '', seedOverride: '', widthOverride: '', heightOverride: '', gpuAssign: '' }; }
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ============ GPU 分配计算 ============ */
+function computePageGpu() {
+  const env = state.global.env;
+  const dual = env === 'kaggle' && state.global.dualGpu;
+  const strategy = state.global.gpuStrategy || 'balanced';
+  const n = state.pages.length;
+  const result = [];
+  for (let i = 0; i < n; i++) {
+    if (!dual) { result.push(0); continue; }
+    if (strategy === 'auto') {
+      result.push(-1);
+    } else if (strategy === 'balanced') {
+      result.push(i % 2);
+    } else {
+      const ga = state.pages[i].gpuAssign;
+      if (ga === '0' || ga === '1') result.push(parseInt(ga));
+      else result.push(i % 2);
+    }
+  }
+  return result;
+}
+
+/* ============ 生成代码 ============ */
+function generateCode() {
+  const g = state.global;
+  const env = (g.env === 'kaggle') ? 'kaggle' : 'colab';
+  const envDefault = defaultsForEnv(env);
+  const WORK_DIR = envDefault.workDir;
+  const pages = state.pages;
+  const N = pages.length;
+  const genAt = new Date().toLocaleString('zh-CN');
+  const dual = (env === 'kaggle' && g.dualGpu);
+  const strategy = dual ? (g.gpuStrategy || 'balanced') : 'balanced';
+  const useQueue = (dual && strategy === 'auto');
+  const pageGpu = computePageGpu();
+
+  const promptsPy = pages.map(p => pyTriple(p.prompt || '')).join(',\n\n');
+  const paramsPy = pages.map(p => {
+    const { seed, width, height } = resolvePageParams(p);
+    return `{'seed': ${seed}, 'width': ${width}, 'height': ${height}}`;
+  }).join(',\n    ');
+
+  const modelsPy = [
+    `('diffusion_models/${pySq(g.dit.name)}',\n  '${pySq(g.dit.url)}')`,
+    `('text_encoders/${pySq(g.te.name)}',\n  '${pySq(g.te.url)}')`,
+    `('vae/${pySq(g.vae.name)}',\n  '${pySq(g.vae.url)}')`
+  ].join(',\n');
+
+  const tsLine = g.runTsMode === 'auto'
+    ? "RUN_TS = datetime.now().strftime('%Y%m%d_%H%M%S')"
+    : `RUN_TS = '${pySq(g.runTsFixed)}'`;
+
+  let envNotice;
+  if (env === 'kaggle') {
+    if (dual) {
+      const strategyDesc = strategy === 'auto'
+        ? '动态负载均衡（队列抢任务）'
+        : (strategy === 'manual' ? '自定义（按页指定）' : '平均分配（交替）');
+      envNotice =
+`#  ⚠ 使用前请先完成以下准备（Kaggle · 双卡并行 · ${strategyDesc}）：
+#  1. 打开 https://www.kaggle.com/code，点右上角 Create New Notebook。
+#  2. 右侧 Session options 面板：
+#       Accelerator 选 GPU T4 ×2；Internet 开关拨到 On。
+#  3. 新建格子先运行：!nvidia-smi   确认两块 GPU 正常，再执行本代码。
+#
+#  双卡并行说明：
+#    - 本 Notebook 会启动两个 ComfyUI 进程，分别绑定 GPU 0 / GPU 1；
+#    - 端口 8188 对应 GPU 0，端口 8189 对应 GPU 1；
+#    - 分配策略：${strategyDesc}；
+#    - Kaggle 持久化目录为 /kaggle/working。`;
+    } else {
+      envNotice =
+`#  ⚠ 使用前请先完成以下准备（Kaggle · 单卡）：
+#  1. 打开 https://www.kaggle.com/code，点右上角 Create New Notebook。
+#  2. 右侧 Session options 面板：
+#       Accelerator 选 GPU T4 ×2；Internet 开关拨到 On。
+#  3. 新建格子先运行：!nvidia-smi   确认 GPU 正常，再执行本代码。
+#
+#  Kaggle 持久化目录为 /kaggle/working，
+#  Session 结束后本目录下的文件会被保留。`;
+    }
+  } else {
+    envNotice =
+`#  ⚠ 使用前请先完成以下准备（Google Colab）：
+#  1. 登录网站：https://colab.research.google.com/
+#  2. 点击“文件” → “在云硬盘中新建笔记本”，
+#     设置“代码执行程序 → 更改运行时类型 → T4 GPU”。
+#  3. 先运行：!nvidia-smi   再开始本代码执行。`;
+  }
+
+  const strategyLabel = { balanced: '平均分配', auto: '自动选择', manual: '自定义' }[strategy];
+  const envTitle = (env === 'kaggle')
+    ? (dual ? `Kaggle · 双卡并行（${strategyLabel}）` : 'Kaggle · 单卡')
+    : 'Google Colab';
+
+  const gpuAssignPy = useQueue ? '' : pageGpu.join(', ');
+  const instancesPy = dual
+    ? `[
+    {'gpu': 0, 'port': 8188, 'base': 'http://127.0.0.1:8188', 'log': '${pySq(envDefault.workDir)}/comfyui_0.log'},
+    {'gpu': 1, 'port': 8189, 'base': 'http://127.0.0.1:8189', 'log': '${pySq(envDefault.workDir)}/comfyui_1.log'},
+]`
+    : `[
+    {'gpu': 0, 'port': 8188, 'base': 'http://127.0.0.1:8188', 'log': '${pySq(envDefault.logFile)}'},
+]`;
+
+  let schedulerPy;
+  if (useQueue) {
+    schedulerPy =
+`# ---------- 10. 执行调度（自动选择 · 动态负载均衡） ----------
+uploaded = []
+if not DUAL_GPU:
+    for i, (prompt, params) in enumerate(zip(PROMPTS, PAGE_PARAMS), start=1):
+        link = process_page(INSTANCES[0], i, prompt, params)
+        if link:
+            uploaded.append(link)
+else:
+    task_queue = queue.Queue()
+    for i, (prompt, params) in enumerate(zip(PROMPTS, PAGE_PARAMS), start=1):
+        task_queue.put((i, prompt, params))
+
+    def auto_worker(inst, q):
+        results = []
+        while True:
+            try:
+                i, prompt, params = q.get_nowait()
+            except queue.Empty:
+                break
+            link = process_page(inst, i, prompt, params)
+            if link:
+                results.append(link)
+        return results
+
+    with ThreadPoolExecutor(max_workers=len(INSTANCES)) as ex:
+        futures = [ex.submit(auto_worker, inst, task_queue) for inst in INSTANCES]
+        for f in futures:
+            uploaded.extend(f.result())
+`;
+  } else {
+    schedulerPy =
+`# ---------- 10. 执行调度（${strategyLabel}） ----------
+def worker(inst, tasks):
+    results = []
+    for i, prompt, params in tasks:
+        link = process_page(inst, i, prompt, params)
+        if link:
+            results.append(link)
+    return results
+
+tasks_by_inst = {inst['gpu']: [] for inst in INSTANCES}
+for i, (prompt, params) in enumerate(zip(PROMPTS, PAGE_PARAMS), start=1):
+    gpu = PAGE_GPU[i-1] if DUAL_GPU else 0
+    if gpu not in tasks_by_inst:
+        gpu = 0
+    tasks_by_inst[gpu].append((i, prompt, params))
+
+uploaded = []
+with ThreadPoolExecutor(max_workers=len(INSTANCES)) as ex:
+    futures = []
+    for inst in INSTANCES:
+        tasks = tasks_by_inst[inst['gpu']]
+        print(f"GPU{inst['gpu']} 分配 {len(tasks)} 页")
+        futures.append(ex.submit(worker, inst, tasks))
+    for f in futures:
+        uploaded.extend(f.result())
+`;
+  }
+
+  return `# ============================================================
+#  绘本生成脚本 —— 由网页生成器生成
+#  运行环境：${envTitle}
+#  页数：${N}
+#  默认尺寸：${g.width}×${g.height}
+#  生成时间：${genAt}
+# ============================================================
+${envNotice}
+# ------------------------------------------------------------
+#  流程说明：
+#    每张严格串行：释放显存 → 生成 → 保存 → 立即上传 → 释放显存
+#    双卡模式：按 GPU 分配策略并发提交到两个 ComfyUI 实例
+#  上传策略：不删除历史文件；每轮共享批次时间戳，天然不冲突
+# ============================================================
+import subprocess, os, sys, time, json, glob, shutil, urllib.request, urllib.error, gc, queue
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+
+# 工作目录（Kaggle：/kaggle/working；Colab：/content）
+WORK_DIR = '${pySq(WORK_DIR)}'
+DUAL_GPU = ${dual ? 'True' : 'False'}
+GPU_STRATEGY = '${strategy}'   # balanced / auto / manual
+
+# ---------- 1. 安装 ComfyUI ----------
+os.chdir(WORK_DIR)
+if not os.path.exists(os.path.join(WORK_DIR, 'ComfyUI')):
+    subprocess.run(['git','clone','--depth','1',
+        'https://github.com/comfyanonymous/ComfyUI'], check=True)
+os.chdir(os.path.join(WORK_DIR, 'ComfyUI'))
+subprocess.run([sys.executable,'-m','pip','install','-q','-r','requirements.txt'], check=True)
+subprocess.run([sys.executable,'-m','pip','install','-q','gguf','sentencepiece','protobuf','requests'], check=True)
+
+# ---------- 2. 下载模型（已存在则跳过，两卡共享同一份） ----------
+MODELS = [
+${modelsPy}
+]
+for local, url in MODELS:
+    path = f'{WORK_DIR}/ComfyUI/models/{local}'
+    if not os.path.exists(path):
+        print(f'下载 {local} ...')
+        subprocess.run(['wget','-c','-O',path,url], check=True)
+
+# ---------- 3. 启动 ComfyUI 实例（单卡 1 个 / 双卡 2 个） ----------
+INSTANCES = ${instancesPy}
+
+for inst in INSTANCES:
+    env = os.environ.copy()
+    env['CUDA_VISIBLE_DEVICES'] = str(inst['gpu'])
+    log_f = open(inst['log'], 'wb')
+    inst['proc'] = subprocess.Popen(
+        [sys.executable, 'main.py', '--listen', '127.0.0.1',
+         '--port', str(inst['port']), '--lowvram'],
+        cwd=os.path.join(WORK_DIR, 'ComfyUI'),
+        env=env, stdout=log_f, stderr=subprocess.STDOUT, start_new_session=True)
+    print(f"启动 ComfyUI GPU{inst['gpu']} (port {inst['port']})...")
+
+for inst in INSTANCES:
+    ready = False
+    for _ in range(120):
+        time.sleep(5)
+        try:
+            urllib.request.urlopen(inst['base'] + '/object_info', timeout=10)
+            ready = True
+            print(f"✅ ComfyUI GPU{inst['gpu']} 已就绪 @ {inst['base']}")
+            break
+        except Exception:
+            pass
+    if not ready:
+        print(f"❌ GPU{inst['gpu']} 启动超时，查看 {inst['log']}")
+
+# ---------- 4. 目录与常量 ----------
+LOCAL_DIR  = '${pySq(g.localDir)}'
+OUTPUT_DIR = '${pySq(g.outputDir)}'
+os.makedirs(LOCAL_DIR, exist_ok=True)
+DIT  = '${pySq(g.dit.name)}'
+TE   = '${pySq(g.te.name)}'
+VAE  = '${pySq(g.vae.name)}'
+STEPS, CFG = ${g.steps}, ${g.cfg}
+NEGATIVE = '${pySq(g.negative)}'
+BIN_ID = '${pySq(g.binId)}'
+
+# 本轮批次时间戳，${N} 页共享，便于按批次识别
+${tsLine}
+print(f'本轮批次时间戳: {RUN_TS}')
+
+# ---------- 5. ${N} 页提示词 ----------
+PROMPTS = [
+${promptsPy}
+]
+
+# ---------- 6. 每页生成参数（SEED / 尺寸） ----------
+PAGE_PARAMS = [
+    ${paramsPy}
+]
+
+# ---------- 7. 每页 GPU 分配（仅 balanced/manual 模式下有效；auto 时为空，改用队列动态调度） ----------
+PAGE_GPU = [${gpuAssignPy}]
+
+# ---------- 8. 工具函数 ----------
+def free_vram(base):
+    """让指定 ComfyUI 实例卸载模型、清空显存。"""
+    try:
+        body = json.dumps({"unload_models": True, "free_memory": True}).encode()
+        req = urllib.request.Request(base + '/free', data=body,
+            headers={'Content-Type':'application/json'}, method='POST')
+        with urllib.request.urlopen(req, timeout=30):
+            pass
+        print(f'  🧹 已请求 {base} 释放显存')
+    except Exception as e:
+        print(f'  ⚠ {base}/free 异常: {e}')
+    gc.collect()
+
+def generate(base, prompt, seed, width, height, prefix):
+    wf = {
+      '1': {'class_type':'UNETLoader','inputs':{'unet_name':DIT,'weight_dtype':'default'}},
+      '2': {'class_type':'CLIPLoader','inputs':{'clip_name':TE,'type':'qwen_image'}},
+      '3': {'class_type':'CLIPTextEncode','inputs':{'clip':['2',0],'text':prompt}},
+      '4': {'class_type':'CLIPTextEncode','inputs':{'clip':['2',0],'text':NEGATIVE}},
+      '5': {'class_type':'VAELoader','inputs':{'vae_name':VAE}},
+      '6': {'class_type':'EmptyLatentImage','inputs':{'width':width,'height':height,'batch_size':1}},
+      '7': {'class_type':'KSampler','inputs':{
+          'model':['1',0],'positive':['3',0],'negative':['4',0],
+          'latent_image':['6',0],'seed':seed,'steps':STEPS,'cfg':CFG,
+          'sampler_name':'er_sde','scheduler':'simple','denoise':1.0}},
+      '8': {'class_type':'VAEDecode','inputs':{'samples':['7',0],'vae':['5',0]}},
+      '9': {'class_type':'SaveImage','inputs':{'images':['8',0],'filename_prefix':prefix}},
+    }
+    body = json.dumps({'prompt':wf}).encode()
+    req = urllib.request.Request(base + '/prompt', data=body,
+        headers={'Content-Type':'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            pid = json.loads(r.read().decode())['prompt_id']
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f'提交失败 HTTP {e.code}: {e.read().decode()}')
+    t0 = time.time()
+    while True:
+        time.sleep(10)
+        with urllib.request.urlopen(base + '/history/' + pid, timeout=30) as r:
+            hist = json.loads(r.read().decode())
+        if pid in hist:
+            if hist[pid]['status'].get('status_str') == 'error':
+                raise RuntimeError('生成出错（可能 OOM），查看对应 comfyui_*.log')
+            break
+    print(f'  ✓ [{base}] 生成完成，用时 {time.time()-t0:.0f} 秒')
+
+def upload_to_filebin(path, bin_id, run_ts):
+    import requests
+    name = os.path.basename(path)
+    base, ext = os.path.splitext(name)
+    upload_name = f'{base}_{run_ts}{ext}'
+    url = f'https://filebin.net/{bin_id}/{upload_name}'
+    try:
+        with open(path, 'rb') as f:
+            r = requests.post(url,
+                data=f.read(),
+                headers={'Content-Type': 'application/octet-stream'},
+                timeout=120)
+        if r.status_code in (200, 201):
+            print(f'  ✅ 上传成功: {url}')
+            return url
+        if r.status_code == 409:
+            for n in range(1, 100):
+                fallback_name = f'{base}_{run_ts}_{n:03d}{ext}'
+                fallback_url = f'https://filebin.net/{bin_id}/{fallback_name}'
+                with open(path, 'rb') as f:
+                    r2 = requests.post(fallback_url,
+                        data=f.read(),
+                        headers={'Content-Type': 'application/octet-stream'},
+                        timeout=120)
+                if r2.status_code in (200, 201):
+                    print(f'  ✅ 上传成功（防撞名）: {fallback_url}')
+                    return fallback_url
+            print('  ❌ 防撞名重试 100 次仍失败')
+            return None
+        print(f'  ❌ 上传失败: {r.status_code} {r.text[:200]}')
+    except Exception as e:
+        print(f'  ❌ 上传异常: {e}')
+    return None
+
+# ---------- 9. 单页处理（供 worker 复用） ----------
+def process_page(inst, i, prompt, params):
+    base = inst['base']
+    prefix = f'page_{i:02d}'
+    local_path = f'{LOCAL_DIR}/{prefix}.png'
+    print(f'\\n========== 第 {i}/{len(PROMPTS)} 页（GPU{inst["gpu"]}） ==========')
+
+    if os.path.exists(local_path):
+        print(f'  ⏭ 本地已存在 {prefix}，直接上传本轮副本')
+        return upload_to_filebin(local_path, BIN_ID, RUN_TS)
+
+    free_vram(base)
+    ok = False
+    for attempt in range(2):
+        try:
+            generate(base, prompt, params['seed'], params['width'], params['height'], prefix)
+            ok = True
+            break
+        except Exception as e:
+            print(f'  ⚠ [{base}] 第 {attempt+1} 次失败: {e}')
+            free_vram(base)
+    if not ok:
+        print(f'  ❌ 第 {i} 页多次失败，跳过')
+        return None
+
+    files = sorted(glob.glob(f'{OUTPUT_DIR}/{prefix}*.png'))
+    if not files:
+        print('  ⚠ 未找到生成文件，跳过')
+        free_vram(base)
+        return None
+    shutil.copy(files[-1], local_path)
+    print(f'  已保存本地: {local_path}')
+
+    link = upload_to_filebin(local_path, BIN_ID, RUN_TS)
+    free_vram(base)
+    return link
+
+${schedulerPy}
+
+# ---------- 11. 汇总 ----------
+print('\\n========== 全部完成 ==========')
+print(f'运行环境: ${envTitle}')
+print(f'双卡并行: {DUAL_GPU}')
+print(f'GPU 策略: {GPU_STRATEGY}')
+print(f'批次时间戳: {RUN_TS}')
+print(f'filebin bin: https://filebin.net/{BIN_ID}')
+for link in uploaded:
+    print(link)
+`;
+}
+
+const codeBlock = document.getElementById('codeBlock');
+function updateCode() {
+  try {
+    const code = generateCode();
+    codeBlock.textContent = code;
+    if (window.hljs) { try { hljs.highlightElement(codeBlock); } catch (e) {} }
+    const totalChars = state.pages.reduce((s, p) => s + (p.prompt || '').length, 0);
+    const strategyKey = state.global.gpuStrategy || 'balanced';
+    const strategyLabel = { balanced: '平均', auto: '自动', manual: '自定义' }[strategyKey] || '平均';
+    const envTitle = state.global.env === 'kaggle'
+      ? (state.global.dualGpu ? `Kaggle·双卡·${strategyLabel}` : 'Kaggle·单卡')
+      : 'Colab';
+    document.getElementById('stats').textContent =
+      `${envTitle} · 共 ${state.pages.length} 页 · ${state.global.width}×${state.global.height} · 提示词 ${totalChars} 字`;
+    // 不再自动保存，仅标记 dirty
+    markDirty();
+  } catch (e) {
+    console.error('generateCode 失败:', e);
+    codeBlock.textContent = '# 生成代码时出错: ' + e.message;
+  }
+}
+
+function bindGlobal(id, getter, setter) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.value = getter();
+  el.addEventListener('input', e => { setter(e.target.value); updateCode(); });
+}
+
+function initGlobalBindings() {
+  const g = state.global;
+  bindGlobal('binId',      () => g.binId,      v => g.binId = v);
+  bindGlobal('localDir',   () => g.localDir,   v => g.localDir = v);
+  bindGlobal('outputDir',  () => g.outputDir,  v => g.outputDir = v);
+  bindGlobal('runTsFixed', () => g.runTsFixed, v => g.runTsFixed = v);
+  bindGlobal('negative',   () => g.negative,   v => g.negative = v);
+  bindGlobal('seed',   () => g.seed,   v => g.seed = parseInt(v) || 0);
+  bindGlobal('steps',  () => g.steps,  v => g.steps = parseInt(v) || 1);
+  bindGlobal('cfg',    () => g.cfg,    v => g.cfg = parseFloat(v) || 0);
+
+  const sizeEl = document.getElementById('sizeSelect');
+  if (sizeEl) {
+    sizeEl.value = sizeKeyFromWH(g.width, g.height);
+    sizeEl.addEventListener('change', e => {
+      const preset = SIZE_PRESETS.find(p => p.key === e.target.value);
+      if (preset) { g.width = preset.w; g.height = preset.h; updateCode(); }
+    });
+  }
+  bindGlobal('ditName', () => g.dit.name, v => g.dit.name = v);
+  bindGlobal('ditUrl',  () => g.dit.url,  v => g.dit.url = v);
+  bindGlobal('teName',  () => g.te.name,  v => g.te.name = v);
+  bindGlobal('teUrl',   () => g.te.url,   v => g.te.url = v);
+  bindGlobal('vaeName', () => g.vae.name, v => g.vae.name = v);
+  bindGlobal('vaeUrl',  () => g.vae.url,  v => g.vae.url = v);
+
+  const modeEl = document.getElementById('runTsMode');
+  if (modeEl) {
+    modeEl.value = g.runTsMode;
+    modeEl.addEventListener('change', e => { g.runTsMode = e.target.value; updateCode(); });
+  }
+  const pcEl = document.getElementById('pageCount');
+  if (pcEl) {
+    pcEl.value = state.pages.length;
+    pcEl.addEventListener('change', e => {
+      let n = parseInt(e.target.value);
+      if (isNaN(n) || n < 1) n = 1;
+      if (n > 50) n = 50;
+      while (state.pages.length < n) state.pages.push(emptyPage());
+      while (state.pages.length > n) state.pages.pop();
+      e.target.value = state.pages.length;
+      renderPages(); updateCode();
+    });
+  }
+  document.querySelectorAll('input[name=envRadio]').forEach(r => {
+    r.checked = (r.value === (g.env || 'colab'));
+    r.addEventListener('change', e => { if (e.target.checked) applyEnv(e.target.value); });
+  });
+  document.querySelectorAll('input[name=gpuModeRadio]').forEach(r => {
+    r.checked = (r.value === (g.dualGpu ? 'dual' : 'single'));
+    r.addEventListener('change', e => { if (e.target.checked) applyGpuMode(e.target.value); });
+  });
+  document.querySelectorAll('input[name=gpuStrategyRadio]').forEach(r => {
+    r.checked = (r.value === (g.gpuStrategy || 'balanced'));
+    r.addEventListener('change', e => { if (e.target.checked) applyGpuStrategy(e.target.value); });
+  });
+}
+
+const pageList = document.getElementById('pageList');
+function pageSizeOverrideKey(p) {
+  if (!p.widthOverride || !p.heightOverride) return '';
+  const k = `${p.widthOverride}x${p.heightOverride}`;
+  return SIZE_PRESETS.find(s => s.key === k) ? k : '';
+}
+function buildSizeOptionsHtml(currentKey) {
+  const g = state.global;
+  let html = `<option value="" ${currentKey === '' ? 'selected' : ''}>继承全局（${g.width}×${g.height}）</option>`;
+  for (const p of SIZE_PRESETS) {
+    html += `<option value="${p.key}" ${currentKey === p.key ? 'selected' : ''}>${p.label}</option>`;
+  }
+  return html;
+}
+function buildGpuOptionsHtml(current) {
+  let html = `<option value="" ${current === '' ? 'selected' : ''}>自动交替</option>`;
+  html += `<option value="0" ${current === '0' ? 'selected' : ''}>固定 GPU 0</option>`;
+  html += `<option value="1" ${current === '1' ? 'selected' : ''}>固定 GPU 1</option>`;
+  return html;
+}
+
+function renderPages() {
+  if (!pageList) return;
+  const showGpu = state.global.env === 'kaggle'
+                && state.global.dualGpu
+                && (state.global.gpuStrategy === 'manual');
+  pageList.innerHTML = '';
+  state.pages.forEach((p, idx) => {
+    const card = document.createElement('div');
+    card.className = 'page-card';
+    const sizeKey = pageSizeOverrideKey(p);
+
+    const gpuFieldHtml = showGpu
+      ? `<div class="field">
+           <label>GPU 分配</label>
+           <select data-key="gpuAssign">${buildGpuOptionsHtml(p.gpuAssign || '')}</select>
+         </div>` : '';
+
+    card.innerHTML = `
+      <div class="page-header">
+        <div class="page-num">${idx + 1}</div>
+        <span style="font-size:12px;color:#888;">第 ${idx + 1} 页</span>
+        <div class="spacer"></div>
+        <button class="btn small" data-act="up" title="上移">↑</button>
+        <button class="btn small" data-act="down" title="下移">↓</button>
+        <button class="btn small danger" data-act="del" title="删除">删除</button>
+      </div>
+      <div class="field">
+        <textarea placeholder="在此输入第 ${idx + 1} 页的完整提示词..."></textarea>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>SEED（留空继承全局 ${state.global.seed}）</label>
+          <input type="number" data-key="seedOverride">
+        </div>
+        <div class="field">
+          <label>尺寸</label>
+          <select data-key="sizeOverride">${buildSizeOptionsHtml(sizeKey)}</select>
+        </div>
+      </div>
+      ${gpuFieldHtml}
+    `;
+
+    const ta = card.querySelector('textarea');
+    ta.value = p.prompt;
+    ta.addEventListener('input', e => {
+      state.pages[idx].prompt = e.target.value;
+      updateCode();
+    });
+
+    const seedInp = card.querySelector('input[data-key=seedOverride]');
+    seedInp.value = p.seedOverride;
+    seedInp.addEventListener('input', e => {
+      state.pages[idx].seedOverride = e.target.value;
+      updateCode();
+    });
+
+    const sizeSel = card.querySelector('select[data-key=sizeOverride]');
+    sizeSel.addEventListener('change', e => {
+      const v = e.target.value;
+      if (v === '') {
+        state.pages[idx].widthOverride = '';
+        state.pages[idx].heightOverride = '';
+      } else {
+        const preset = SIZE_PRESETS.find(s => s.key === v);
+        if (preset) {
+          state.pages[idx].widthOverride = String(preset.w);
+          state.pages[idx].heightOverride = String(preset.h);
+        }
+      }
+      updateCode();
+    });
+
+    const gpuSel = card.querySelector('select[data-key=gpuAssign]');
+    if (gpuSel) {
+      gpuSel.addEventListener('change', e => {
+        state.pages[idx].gpuAssign = e.target.value;
+        updateCode();
+      });
+    }
+
+    card.querySelector('[data-act=up]').addEventListener('click', () => movePage(idx, -1));
+    card.querySelector('[data-act=down]').addEventListener('click', () => movePage(idx, 1));
+    card.querySelector('[data-act=del]').addEventListener('click', () => delPage(idx));
+
+    pageList.appendChild(card);
+  });
+  const pcEl = document.getElementById('pageCount');
+  if (pcEl) pcEl.value = state.pages.length;
+}
+
+function movePage(idx, delta) {
+  const j = idx + delta;
+  if (j < 0 || j >= state.pages.length) return;
+  [state.pages[idx], state.pages[j]] = [state.pages[j], state.pages[idx]];
+  renderPages(); updateCode();
+}
+function delPage(idx) {
+  if (state.pages.length <= 1) { alert('至少保留一页'); return; }
+  state.pages.splice(idx, 1);
+  renderPages(); updateCode();
+}
+
+document.getElementById('addPageBtn').addEventListener('click', () => {
+  if (state.pages.length >= 50) { alert('最多 50 页'); return; }
+  state.pages.push(emptyPage());
+  renderPages(); updateCode();
+  document.querySelector('.panel').scrollTop = document.querySelector('.panel').scrollHeight;
+});
+
+/* 保存配置按钮 */
+document.getElementById('saveConfigBtn').addEventListener('click', saveConfigNow);
+
+document.getElementById('bindDirBtn').addEventListener('click', pickDirectory);
+
+document.getElementById('resetConfigBtn').addEventListener('click', () => {
+  if (!confirm('确定要恢复全部默认配置吗？\n\n当前所有页面提示词、模型设置等都会被清空（不会自动保存）。')) return;
+  try { localStorage.removeItem(LS_KEY); } catch (e) {}
+  state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  renderAll(); applyEnvUI();
+  isDirty = true;
+  setStatus('dirty', '已恢复默认配置（点「💾 保存配置」写入磁盘）');
+});
+
+/* 窗口关闭前提示未保存 */
+window.addEventListener('beforeunload', e => {
+  if (isDirty) {
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
+});
+
+const batchModal = document.getElementById('batchModal');
+const batchInput = document.getElementById('batchInput');
+const batchDelimiter = document.getElementById('batchDelimiter');
+const batchMode = document.getElementById('batchMode');
+const batchStats = document.getElementById('batchStats');
+const batchPreview = document.getElementById('batchPreview');
+
+document.getElementById('batchImportBtn').addEventListener('click', () => {
+  batchModal.classList.add('show');
+  updateBatchPreview();
+  setTimeout(() => batchInput.focus(), 50);
+});
+document.getElementById('batchClose').addEventListener('click', closeBatchModal);
+document.getElementById('batchCancel').addEventListener('click', closeBatchModal);
+batchModal.addEventListener('click', e => { if (e.target === batchModal) closeBatchModal(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && batchModal.classList.contains('show')) closeBatchModal();
+});
+function closeBatchModal() { batchModal.classList.remove('show'); }
+batchInput.addEventListener('input', updateBatchPreview);
+batchDelimiter.addEventListener('change', updateBatchPreview);
+
+function splitByPageMarker(text) {
+  const lines = text.split('\n');
+  const parts = []; let current = []; let markerCount = 0;
+  const isMarker = line => /^[\s]*第\s*\d+\s*页(?:提示词)?[\s:：]*$/i.test(line);
+  for (const line of lines) {
+    if (isMarker(line)) {
+      if (current.length > 0) { const piece = current.join('\n').trim(); if (piece) parts.push(piece); }
+      current = []; markerCount++;
+    } else current.push(line);
+  }
+  if (current.length > 0) { const piece = current.join('\n').trim(); if (piece) parts.push(piece); }
+  return markerCount >= 2 ? parts : [];
+}
+function splitPrompts(text, mode) {
+  if (!text || !text.trim()) return [];
+  if (mode === 'auto') {
+    if (/第\s*\d+\s*页/i.test(text)) { const r = splitByPageMarker(text); if (r.length >= 2) return r; }
+    if (/^\s*-{3,}\s*$/m.test(text)) {
+      const r = text.split(/^\s*-{3,}\s*$/m).map(s => s.trim()).filter(Boolean);
+      if (r.length >= 2) return r;
+    }
+    if (text.includes('"""')) {
+      const m = [...text.matchAll(/"""([\s\S]*?)"""/g)];
+      if (m.length >= 2) {
+        const r = m.map(x => x[1].trim()).filter(Boolean);
+        if (r.length >= 2) return r;
+      }
+    }
+    if (/\n\s*\n/.test(text.trim())) {
+      const r = text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+      if (r.length >= 2) return r;
+    }
+    return [text.trim()];
+  }
+  if (mode === 'page') return splitByPageMarker(text);
+  if (mode === 'dash')  return text.split(/^\s*-{3,}\s*$/m).map(s => s.trim()).filter(Boolean);
+  if (mode === 'triple') {
+    const m = [...text.matchAll(/"""([\s\S]*?)"""/g)];
+    return m.map(x => x[1].trim()).filter(Boolean);
+  }
+  if (mode === 'blank') return text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+  if (mode === 'line')  return text.split(/\n/).map(s => s.trim()).filter(Boolean);
+  return [];
+}
+function updateBatchPreview() {
+  const parts = splitPrompts(batchInput.value, batchDelimiter.value);
+  batchStats.textContent = `识别到 ${parts.length} 个提示词`;
+  batchPreview.innerHTML = '';
+  if (parts.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'batch-preview-empty';
+    empty.textContent = '粘贴提示词后这里会显示预览';
+    batchPreview.appendChild(empty);
+    return;
+  }
+  parts.forEach((p, i) => {
+    const item = document.createElement('div');
+    item.className = 'batch-preview-item';
+    const num = document.createElement('div');
+    num.className = 'batch-preview-num';
+    num.textContent = i + 1;
+    const txt = document.createElement('div');
+    txt.className = 'batch-preview-text';
+    txt.textContent = p.length > 90 ? p.slice(0, 90) + '…' : p;
+    item.appendChild(num); item.appendChild(txt);
+    batchPreview.appendChild(item);
+  });
+}
+
+document.getElementById('batchConfirm').addEventListener('click', () => {
+  const parts = splitPrompts(batchInput.value, batchDelimiter.value);
+  if (parts.length === 0) { alert('没有识别到提示词'); return; }
+  const mode = batchMode.value;
+  if (mode === 'replace') {
+    state.pages = parts.map(p => ({ prompt: p, seedOverride: '', widthOverride: '', heightOverride: '', gpuAssign: '' }));
+  } else {
+    parts.forEach(p => state.pages.push({ prompt: p, seedOverride: '', widthOverride: '', heightOverride: '', gpuAssign: '' }));
+  }
+  if (state.pages.length > 50) {
+    state.pages = state.pages.slice(0, 50);
+    alert('最多 50 页，已自动截断');
+  }
+  renderPages(); updateCode();
+  closeBatchModal();
+  batchInput.value = '';
+});
+
+document.getElementById('exportPyBtn').addEventListener('click', () => {
+  const env = state.global.env === 'kaggle' ? 'kaggle' : 'colab';
+  const strategy = state.global.gpuStrategy || 'balanced';
+  const modeLabel = (env === 'kaggle' && state.global.dualGpu) ? `dual_${strategy}` : 'single';
+  const filename = `generate_storybook_${env}_${modeLabel}.py`;
+  downloadFile(generateCode(), filename, 'text/x-python');
+});
+document.getElementById('exportJsonBtn').addEventListener('click', () => {
+  downloadFile(JSON.stringify(state, null, 2), CONFIG_FILENAME, 'application/json');
+});
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(generateCode());
+    const btn = document.getElementById('copyBtn');
+    const old = btn.textContent;
+    btn.textContent = '✅ 已复制';
+    setTimeout(() => btn.textContent = old, 1200);
+  } catch (e) { alert('复制失败：' + e.message); }
+});
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importInput').click();
+});
+document.getElementById('importInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      if (file.name.endsWith('.json')) {
+        state = mergeConfig(JSON.parse(reader.result));
+      } else if (file.name.endsWith('.py')) {
+        parseScript(reader.result);
+      } else { alert('只支持 .py 或 .json'); return; }
+      renderAll(); applyEnvUI(); updateCode();
+      setStatus('dirty', '已导入配置（点「💾 保存配置」写入磁盘）');
+    } catch (err) { alert('导入失败: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function parseScript(text) {
+  const next = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  const g = next.global;
+  const m = (re) => { const r = text.match(re); return r ? r[1] : null; };
+  let v;
+
+  if (/运行环境[：:]\s*Kaggle/.test(text) ||
+      /Kaggle 持久化目录为 \/kaggle\/working/.test(text) ||
+      /WORK_DIR\s*=\s*'\/kaggle\/working'/.test(text)) {
+    g.env = 'kaggle';
+  } else if (/运行环境[：:]\s*Google Colab/.test(text) ||
+             /WORK_DIR\s*=\s*'\/content'/.test(text)) {
+    g.env = 'colab';
+  }
+  g.dualGpu = /DUAL_GPU\s*=\s*True/.test(text) && g.env === 'kaggle';
+
+  if (/GPU_STRATEGY\s*=\s*'auto'/.test(text)) g.gpuStrategy = 'auto';
+  else if (/GPU_STRATEGY\s*=\s*'manual'/.test(text)) g.gpuStrategy = 'manual';
+  else if (/GPU_STRATEGY\s*=\s*'balanced'/.test(text)) g.gpuStrategy = 'balanced';
+
+  if ((v = m(/BIN_ID\s*=\s*'([^']*)'/))) g.binId = v;
+  if ((v = m(/LOCAL_DIR\s*=\s*'([^']*)'/))) g.localDir = v;
+  if ((v = m(/OUTPUT_DIR\s*=\s*'([^']*)'/))) g.outputDir = v;
+  if ((v = m(/DIT\s*=\s*'([^']*)'/))) g.dit.name = v;
+  if ((v = m(/TE\s*=\s*'([^']*)'/))) g.te.name = v;
+  if ((v = m(/VAE\s*=\s*'([^']*)'/))) g.vae.name = v;
+  if ((v = m(/NEGATIVE\s*=\s*'((?:[^'\\]|\\.)*)'/))) {
+    g.negative = v.replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+  }
+  const sc = text.match(/STEPS,\s*CFG\s*=\s*([\d.]+),\s*([\d.]+)/);
+  if (sc) { g.steps = parseFloat(sc[1]); g.cfg = parseFloat(sc[2]); }
+  if (/RUN_TS\s*=\s*datetime\.now\(\)/.test(text)) g.runTsMode = 'auto';
+  else if ((v = m(/RUN_TS\s*=\s*'([^']*)'/))) { g.runTsMode = 'fixed'; g.runTsFixed = v; }
+
+  const modelsBlock = text.match(/MODELS\s*=\s*\[([\s\S]*?)\]\s*\n/);
+  if (modelsBlock) {
+    const re = /\('([^']*)',\s*\n?\s*'([^']*)'\)/g;
+    let mm;
+    while ((mm = re.exec(modelsBlock[1]))) {
+      const local = mm[1], url = mm[2];
+      if (local.startsWith('diffusion_models/')) { g.dit.name = local.slice('diffusion_models/'.length); g.dit.url = url; }
+      else if (local.startsWith('text_encoders/')) { g.te.name = local.slice('text_encoders/'.length); g.te.url = url; }
+      else if (local.startsWith('vae/')) { g.vae.name = local.slice('vae/'.length); g.vae.url = url; }
+    }
+  }
+
+  const pBlock = text.match(/PROMPTS\s*=\s*\[([\s\S]*?)\n\]/);
+  if (pBlock) {
+    const prompts = [...pBlock[1].matchAll(/"""([\s\S]*?)"""/g)].map(x => x[1].trim());
+    if (prompts.length > 0) {
+      next.pages = prompts.map(p => ({ prompt: p, seedOverride: '', widthOverride: '', heightOverride: '', gpuAssign: '' }));
+    }
+  }
+  const ppBlock = text.match(/PAGE_PARAMS\s*=\s*\[([\s\S]*?)\n\]/);
+  if (ppBlock) {
+    const re = /\{'seed':\s*(-?\d+),\s*'width':\s*(\d+),\s*'height':\s*(\d+)\}/g;
+    let mm, i = 0;
+    while ((mm = re.exec(ppBlock[1]))) {
+      if (next.pages[i]) {
+        const w = mm[2], h = mm[3];
+        if (SIZE_PRESETS.find(s => s.key === `${w}x${h}`)) {
+          next.pages[i].widthOverride = w;
+          next.pages[i].heightOverride = h;
+        }
+        next.pages[i].seedOverride = mm[1];
+      }
+      i++;
+    }
+  }
+  const pgBlock = text.match(/PAGE_GPU\s*=\s*\[([\d,\s]+)\]/);
+  if (pgBlock && g.dualGpu) {
+    const list = pgBlock[1].split(',').map(s => parseInt(s.trim())).filter(x => !isNaN(x) && x >= 0);
+    list.forEach((gpu, idx) => {
+      if (next.pages[idx] && (gpu === 0 || gpu === 1)) {
+        next.pages[idx].gpuAssign = String(gpu);
+      }
+    });
+  }
+  state = mergeConfig(next);
+}
+
+function renderAll() {
+  initGlobalBindings();
+  renderPages();
+  updateCode();
+}
+
+initApp().catch(e => {
+  console.error('initApp 崩溃:', e);
+  setStatus('error', '初始化失败: ' + e.message);
+  if (!state) state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  try { renderAll(); } catch (e2) { console.error(e2); }
+});
+</script>
+</body>
+</html>
